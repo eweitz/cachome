@@ -299,9 +299,9 @@ class WikiPathwaysCache():
                 "<!--",
                 f"  WikiPathways page: {wp_url}",
                 f"  URL for this compressed file: {data_url}",
-                f"  Uncompressed SVG file: {original_name}",
+                # f"  Uncompressed SVG file: {original_name}",
                 # f"  From upstream ZIP archive: {url}",
-                f"  Source code for compression: {code_url}"
+                f"  Source code for compression: {code_url}",
                 "-->"
             ])
 
