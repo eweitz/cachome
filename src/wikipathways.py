@@ -78,7 +78,7 @@ def custom_lossless_optimize_svg(svg):
     svg = re.sub('xml:space="preserve"', '', svg)
 
     # Condense colors.
-    # Consider converting hard-coding with generalized approach.
+    # Consider using an abstract, general approach instead of hard-coding.
     svg = re.sub('#000000', '#000', svg)
     svg = re.sub('#ff0000', '#f00', svg)
     svg = re.sub('#00ff00', '#0f0', svg)
@@ -96,6 +96,8 @@ def custom_lossless_optimize_svg(svg):
     svg = re.sub('#cccccc', '#ccc', svg)
     svg = re.sub('#999999', '#999', svg)
 
+    svg = re.sub('#808080', 'grey', svg)
+
     # Remove "px" from attributes where numbers are assumed to be pixels.
     svg = re.sub(r'width="([0-9.]+)px"', r'width="\1"', svg)
     svg = re.sub(r'height="([0-9.]+)px"', r'height="\1"', svg)
@@ -105,10 +107,32 @@ def custom_lossless_optimize_svg(svg):
     svg = re.sub('stroke-width="inherit"', '', svg)
     svg = re.sub('color="inherit"', '', svg)
 
+    svg = re.sub('fill-opacity="0"', '', svg)
+
+    # Match any anchor tag, up until closing angle bracket (>), that includes a
+    # color attribute with the value black (#000).
+    # For such matches, remove the color attribute but not anything else.
+    svg = re.sub(r'<a([^>]*)(color="#000")', r'<a \1', svg)
+
+    svg = re.sub(r'<(rect class="Icon"[^>]*)(color="#000")', r'<rect \1', svg)
+
+    svg = re.sub(r'<(text class="Text"[^>]*)(fill="#000")', r'<\1', svg)
+    svg = re.sub(r'<(text class="Text"[^>]*)(stroke="white" stroke-width="0")', r'<\1', svg)
+
+    # svg = re.sub('text-anchor="middle"', '', svg)
+
     return svg
 
 def custom_lossy_optimize_svg(svg):
-    # svg = re.sub('text-anchor="middle"', '', svg)
+    """Lossily decrease size of WikiPathways SVG
+
+    The broad principle is to remove data that does not affect static render,
+    but could affect dynamic rendering (e.g. highlighting a specific gene).
+
+    Data removed here could be inferred and/or repopulated in the DOM given a
+    schema.  Such a schema would first need to be defined and made available in
+    client-side software.  It might make sense to do that in the pvjs library.
+    """
 
     # Remove non-leaf pathway categories.
     svg = re.sub('SingleFreeNode DataNode ', '', svg)
@@ -116,12 +140,13 @@ def custom_lossy_optimize_svg(svg):
     svg = re.sub('Edge Interaction ', '', svg)
     svg = re.sub('Edge Interaction', 'Interaction', svg)
 
-    svg = re.sub('HGNC_\w+\s*', '', svg)
+    # Interaction data attributes
     svg = re.sub('SBO_[0-9]+\s*', '', svg)
 
     # Gene data attributes
     svg = re.sub('Entrez_Gene_[0-9]+\s*', '', svg)
     svg = re.sub('Ensembl_ENS\w+\s*', '', svg)
+    svg = re.sub('HGNC_\w+\s*', '', svg)
     svg = re.sub('Wikidata_Q[0-9]+\s*', '', svg)
     svg = re.sub('P594_ENSG[0-9]+\s*', '', svg)
     svg = re.sub('P351_\w+\s*', '', svg)
@@ -131,27 +156,21 @@ def custom_lossy_optimize_svg(svg):
     # Metabolite data attributes
     svg = re.sub('P683_CHEBI_[0-9]+\s*', '', svg)
     svg = re.sub('P2057_\w+\s*', '', svg)
-    svg = re.sub('ChEBI_[0-9]\s*', '', svg)
+    svg = re.sub('ChEBI_[0-9]+\s*', '', svg)
+    svg = re.sub('ChEBI_CHEBI[0-9]+\s*', '', svg)
+    svg = re.sub('P683_[0-9]+', '', svg)
     svg = re.sub('HMDB_\w+\s*', '', svg)
+
+    # Group data attributes
+    svg = re.sub('Group GroupGroup', 'GroupGroup', svg)
+    svg = re.sub('Group GroupNone', 'GroupNone', svg)
+    svg = re.sub('Group Complex GroupComplex', 'GroupComplex', svg)
 
     svg = re.sub('about="[^"]*"', '', svg)
 
     svg = re.sub(r'xlink:href="http[^\'" >]*"', '', svg)
     svg = re.sub('target="_blank"', '', svg)
 
-    # Match any anchor tag, up until closing angle bracket (>), that includes a
-    # color attribute with the value black (#000).
-    # For such matches, remove the color attribute but not anything else.
-    svg = re.sub(r'<a([^>]*)(color="#000")', r'<a \1', svg)
-
-    svg = re.sub(r'<(rect class="Icon"[^>]*)(color="#000")', r'<a \1', svg)
-
-    return svg
-
-
-def custom_optimize_svg(svg):
-    svg = custom_lossless_optimize_svg(svg)
-    svg = custom_lossy_optimize_svg(svg)
     return svg
 
 
@@ -171,7 +190,6 @@ class WikiPathwaysCache():
 
         prev_error_wpids = []
         error_wpids = []
-
 
         error_path = org_dir + "error_wpids.csv"
         if os.path.exists(error_path):
@@ -293,7 +311,8 @@ class WikiPathwaysCache():
             )
 
             # clean_svg = re.sub('tspan x="0" y="0"', 'tspan', clean_svg)
-            clean_svg = custom_optimize_svg(clean_svg)
+            clean_svg = custom_lossless_optimize_svg(clean_svg)
+            clean_svg = custom_lossy_optimize_svg(clean_svg)
 
             with open(optimized_svg_path, "w") as f:
                 f.write(clean_svg)
